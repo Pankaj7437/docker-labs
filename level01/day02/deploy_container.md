@@ -8,7 +8,7 @@ The container must:
 
 - Use the **nginx image**
 - Use the **alpine tag**
-- Be named **nginx2**
+- Be named **nginx_2**
 - Be in **running state**
 
 ---
@@ -42,7 +42,7 @@ ssh steve@stapp02
 Run the Docker container using the nginx alpine image.
 
 ```bash
-docker run -d --name nginx2 nginx:alpine
+docker run -d --name nginx_2 nginx:alpine
 ```
 
 Explanation:
@@ -51,7 +51,7 @@ Explanation:
 |---|---|
 | docker run | Create and start container |
 | -d | Run container in background |
-| --name nginx2 | Assign container name |
+| --name nginx_2 | Assign container name |
 | nginx:alpine | Use nginx image with alpine tag |
 
 ---
@@ -68,7 +68,7 @@ Expected output should show:
 
 ```
 CONTAINER ID   IMAGE          NAME
-xxxxxxxxxxxx   nginx:alpine   nginx2
+xxxxxxxxxxxx   nginx:alpine   nginx_2
 ```
 
 Status should be:
@@ -84,7 +84,7 @@ Up
 ```bash
 ssh steve@stapp02
 
-docker run -d --name nginx2 nginx:alpine
+docker run -d --name nginx_2 nginx:alpine
 
 docker ps
 ```
