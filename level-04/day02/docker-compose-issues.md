@@ -1,39 +1,22 @@
-# Docker Compose Configuration Troubleshooting – Nautilus
+# Docker Compose Deployment Troubleshooting – Nautilus App Server 1
 
-## 📌 Lab Overview
+## 📌 Task Overview
 
-The Nautilus DevOps team was deploying an application on **App Server 1** in **Stratos DC**, but deployment was failing because of mistakes in the existing Docker Compose configuration.
+The Nautilus DevOps team had an application deployment failure on **App Server 1** due to a misconfigured Docker Compose file.
 
-The task was to inspect the existing `docker-compose.yml`, identify the configuration issues, fix them **without changing valid settings or container names**, and successfully run the application.
+The existing Compose file was located at:
 
----
+```bash
+/opt/docker/docker-compose.yml
+```
 
-## 🎯 Objectives
-
-* Locate the Docker Compose file under `/opt/docker`.
-* Identify syntax/configuration errors.
-* Correct the Compose file.
-* Preserve the existing container names.
-* Start the application successfully using Docker Compose.
+The objective was to identify the invalid configuration, correct it **without changing valid settings or container names**, and successfully deploy the application with its Redis dependency.
 
 ---
 
-## 🖥️ Server Details
+## 🔍 Initial Issue
 
-| Item                  | Details              |
-| --------------------- | -------------------- |
-| Server                | App Server 1         |
-| User                  | `tony`               |
-| Working Directory     | `/opt/docker`        |
-| Compose File          | `docker-compose.yml` |
-| Application Container | `python`             |
-| Redis Container       | `redis`              |
-
----
-
-## 🔍 Initial Configuration
-
-The existing file contained:
+The original Compose file contained:
 
 ```yaml
 name: myapp
@@ -54,72 +37,37 @@ service:
     container_name: redis
 ```
 
----
+Running:
 
-## ❌ Issue 1 – Incorrect Compose Key
-
-The file used:
-
-```yaml
-service:
+```bash
+docker compose up
 ```
 
-Docker Compose expects:
-
-```yaml
-services:
-```
-
-Therefore, Docker Compose produced:
+resulted in a validation error:
 
 ```text
-Additional property service is not allowed
+additional property 'service' is not allowed
 ```
 
-### Fix
+### Problems identified
 
-Changed:
+There were two incorrect Compose keys:
 
-```yaml
-service:
-```
-
-to:
-
-```yaml
-services:
-```
+1. `service:` should be **`services:`**
+2. `from:` should be **`image:`**
 
 ---
 
-## ❌ Issue 2 – Redis Service Configuration
+## 🛠️ Corrected Configuration
 
-The Redis service used:
-
-```yaml
-redis:
-  from: redis
-  container_name: redis
-```
-
-The service needs an image definition. The corrected configuration is:
-
-```yaml
-redis:
-  image: redis
-  container_name: redis
-```
-
----
-
-## ✅ Corrected `docker-compose.yml`
+The final `docker-compose.yml` was:
 
 ```yaml
 name: myapp
 
 services:
   web:
-    build: /app
+    build: ./app
     container_name: python
     ports:
       - "5000:5000"
@@ -133,178 +81,112 @@ services:
     container_name: redis
 ```
 
-> The existing container names `python` and `redis` were preserved as required.
+### Important corrections
 
----
+| Incorrect     | Correct        |
+| ------------- | -------------- |
+| `service:`    | `services:`    |
+| `from: redis` | `image: redis` |
+| `build: /app` | `build: ./app` |
 
-## 🚀 Step-by-Step Solution
-
-### 1. Connect to App Server 1
-
-```bash
-ssh tony@stapp01
-```
-
----
-
-### 2. Navigate to the Docker directory
-
-```bash
-cd /opt/docker
-```
-
-Check the files:
-
-```bash
-ls
-```
-
-Expected:
-
-```text
-app
-docker-compose.yml
-```
-
----
-
-### 3. Inspect the Compose file
-
-```bash
-cat docker-compose.yml
-```
-
-The first error was identified from the Compose validation message:
-
-```text
-Additional property service is not allowed
-```
-
-This indicated that `service` was not a valid top-level Compose property.
-
----
-
-### 4. Edit the file
-
-```bash
-sudo nano docker-compose.yml
-```
-
-Correct the configuration to:
-
-```yaml
-name: myapp
-
-services:
-  web:
-    build: /app
-    container_name: python
-    ports:
-      - "5000:5000"
-    volumes:
-      - .:/code
-    depends_on:
-      - redis
-
-  redis:
-    image: redis
-    container_name: redis
-```
-
-Save and exit.
-
----
-
-## 🔎 Validate the Configuration
-
-Before starting the application, validate the Compose file:
-
-```bash
-docker compose config
-```
-
-If the YAML is valid, Docker Compose displays the parsed configuration instead of reporting a validation error.
-
----
-
-## ▶️ Start the Application
-
-```bash
-docker compose up -d
-```
-
-The `-d` option starts the containers in detached mode.
-
----
-
-## 🔍 Verify Containers
-
-```bash
-docker ps
-```
-
-The containers should include:
+The required container names were preserved:
 
 ```text
 python
 redis
 ```
 
-You can also check the Compose services:
+---
+
+## 🚀 Deployment
+
+Navigate to the Compose directory:
+
+```bash
+cd /opt/docker
+```
+
+Validate the Compose configuration:
+
+```bash
+docker compose config
+```
+
+Then start the application:
+
+```bash
+docker compose up -d
+```
+
+Check running containers:
+
+```bash
+docker ps
+```
+
+Expected containers:
+
+```text
+python
+redis
+```
+
+---
+
+## 🔎 Troubleshooting
+
+If the `python` container is reported as **down or missing**, check:
+
+```bash
+docker ps -a
+```
+
+Then inspect its logs:
+
+```bash
+docker logs python
+```
+
+Also check the Compose status:
 
 ```bash
 docker compose ps
 ```
 
----
-
-## 🧹 Useful Commands
-
-Stop the application:
+If necessary, recreate the services:
 
 ```bash
 docker compose down
+docker compose up -d --build
 ```
 
-View logs:
+Then verify:
 
 ```bash
-docker compose logs
-```
-
-View logs for the web container:
-
-```bash
-docker compose logs web
-```
-
-Restart the stack:
-
-```bash
-docker compose restart
+docker ps
 ```
 
 ---
 
 ## 🧠 What I Learned
 
-### 1. Docker Compose uses `services`
+### 1. `services` is the root key
 
-The correct top-level structure is:
+Docker Compose expects services to be declared under:
 
 ```yaml
 services:
 ```
 
-not:
+Using:
 
 ```yaml
 service:
 ```
 
----
+causes Compose validation to fail.
 
-### 2. `image` specifies the container image
+### 2. `image` specifies an existing Docker image
 
 For Redis:
 
@@ -313,92 +195,61 @@ redis:
   image: redis
 ```
 
-This tells Docker Compose to create the Redis container from the Redis image.
+`from:` is not a valid Compose service property.
 
----
+### 3. `build` defines the build context
 
-### 3. `depends_on`
+```yaml
+build: ./app
+```
+
+means Docker uses the `app` directory relative to the Compose file as the build context.
+
+### 4. `depends_on`
 
 ```yaml
 depends_on:
   - redis
 ```
 
-defines the dependency between the `web` service and Redis.
-
-It tells Compose to start the Redis service before the web service.
-
----
-
-### 4. Port Mapping
-
-```yaml
-ports:
-  - "5000:5000"
-```
-
-means:
-
-```text
-Host Port 5000
-       │
-       ▼
-Container Port 5000
-```
-
----
-
-### 5. Bind Mount
-
-```yaml
-volumes:
-  - .:/code
-```
-
-mounts the current host directory into `/code` inside the container.
+ensures the Redis service is started as a dependency of the web service.
 
 ---
 
 ## 📊 Architecture
 
 ```text
-                 Docker Compose
-                      │
-          ┌───────────┴───────────┐
-          │                       │
-          ▼                       ▼
-     ┌─────────┐             ┌─────────┐
-     │  web    │             │  redis  │
-     │ python  │────────────▶│  redis  │
-     └─────────┘             └─────────┘
+                 App Server 1
+              /opt/docker/
+                    │
+                    │ docker compose
+                    ▼
+          ┌─────────────────────┐
+          │       myapp         │
+          │   Docker Compose    │
+          └──────────┬──────────┘
+                     │
+          ┌──────────┴──────────┐
+          │                     │
+          ▼                     ▼
+   ┌─────────────┐       ┌─────────────┐
+   │   python    │       │    redis    │
+   │  Web App    │──────▶│   Database  │
+   │             │       │   Service   │
+   │ Port 5000   │       │             │
+   └──────┬──────┘       └─────────────┘
           │
           │ Port 5000
           ▼
-     Host :5000
+       Host :5000
 ```
 
 ---
 
-## 💼 Key DevOps Takeaway
+## 💡 Key Takeaway
 
-This lab was mainly about **troubleshooting an existing Docker Compose configuration rather than creating one from scratch**.
+This lab reinforced an important DevOps troubleshooting approach:
 
-The important debugging approach was:
+> **Don't immediately rewrite a broken configuration. First validate it, identify the exact invalid directive, change only what is necessary, and then verify the resulting containers and logs.**
 
-```text
-Run Compose
-    ↓
-Read the validation error
-    ↓
-Inspect docker-compose.yml
-    ↓
-Identify invalid YAML/Compose properties
-    ↓
-Fix only the incorrect configuration
-    ↓
-Validate with docker compose config
-    ↓
-Start with docker compose up -d
-    ↓
-Verify with docker compose ps / docker ps
-```
+This is especially important in production environments where unnecessarily modifying valid configuration can introduce additional failures.
